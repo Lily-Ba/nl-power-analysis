@@ -226,3 +226,7 @@ data/raw/*
 data/processed/*.parquet
 .DS_Store
 models/
+# Processed files the online dashboard needs
+!data/processed/hourly.parquet
+!data/processed/predictions_2025.parquet
+!data/processed/feature_importance.parquet

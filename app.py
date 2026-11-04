@@ -37,7 +37,7 @@ st.title("⚡ Dutch Power Market Dashboard")
 st.caption("Netherlands day-ahead electricity prices 2019–2025 · Source: ENTSO-E Transparency Platform")
 
 tabs = st.tabs(["Market overview", "Negative prices", "Price forecast",
-                "Negative-price alert", "Procurement simulator"])
+                "Negative-price alert", "Procurement simulator", "Smart load shifting"])
 
 # --- 1. Market overview -------------------------------------------------------
 with tabs[0]:
@@ -195,3 +195,69 @@ with tabs[4]:
     st.dataframe(result.round(1), width="stretch")
     st.caption("Simplifications: the fixed price is approximated from the previous year's spot "
                "average; network costs, taxes and imbalance costs are excluded.")
+
+# --- 6. Smart load shifting -----------------------------------------------------
+with tabs[5]:
+    st.markdown("A factory has a flexible process (for example an electric boiler or batch "
+                "production) that must run a set number of hours every day. Each day it decides "
+                "**which** hours to run. How much does the price forecast save in 2025?")
+    c1, c2 = st.columns(2)
+    run_hours = c1.slider("Hours the process must run per day", 1, 12, 6)
+    power = c2.slider("Power of the flexible process (MW)", 1, 20, 5)
+
+    shift = preds[["price", "price_pred"]].copy()
+    shift["date"] = shift.index.date
+    shift["hour"] = shift.index.hour
+    plans = {
+        "Fixed schedule (from 08:00)": shift["hour"].between(8, 8 + run_hours - 1),
+        "Forecast-based (our model)": shift.groupby("date")["price_pred"]
+                                           .rank(method="first") <= run_hours,
+        "Perfect foresight (upper limit)": shift.groupby("date")["price"]
+                                                .rank(method="first") <= run_hours,
+    }
+    cost = {name: (shift.loc[mask, "price"] * power).sum() for name, mask in plans.items()}
+    base = cost["Fixed schedule (from 08:00)"]
+    model_saving = base - cost["Forecast-based (our model)"]
+    max_saving = base - cost["Perfect foresight (upper limit)"]
+    energy = shift.loc[plans["Fixed schedule (from 08:00)"]].shape[0] * power
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Cost with fixed schedule", f"€{base / 1e3:,.0f}k",
+              help=f"{energy:,.0f} MWh in 2025")
+    c2.metric("Saved by the forecast", f"€{model_saving / 1e3:,.0f}k",
+              f"{model_saving / base:.0%} cheaper" if base > 0 else None)
+    c3.metric("Share of the maximum possible saving",
+              f"{model_saving / max_saving:.0%}" if max_saving > 0 else "–",
+              help="Perfect foresight = knowing the real prices in advance.")
+
+    monthly = pd.DataFrame({
+        name: (shift.loc[mask, "price"] * power).groupby(shift.loc[mask].index.month).sum()
+        for name, mask in plans.items()
+    })
+    savings = pd.DataFrame({
+        "Forecast-based (our model)":
+            monthly["Fixed schedule (from 08:00)"] - monthly["Forecast-based (our model)"],
+        "Perfect foresight (upper limit)":
+            monthly["Fixed schedule (from 08:00)"] - monthly["Perfect foresight (upper limit)"],
+    }).div(1e3).rename_axis("month").reset_index()
+    long = savings.melt("month", var_name="Plan", value_name="€k saved")
+    fig = px.bar(long, x="month", y="€k saved", color="Plan", barmode="group",
+                 color_discrete_sequence=[ORANGE, GREY],
+                 title="Monthly saving vs the fixed schedule (€ thousand)",
+                 labels={"month": "Month"})
+    st.plotly_chart(style(fig), width="stretch")
+
+    day = st.date_input("Example day", value=pd.Timestamp("2025-06-15"),
+                        min_value=preds.index.min().date(), max_value=preds.index.max().date(),
+                        key="shift_day")
+    d = shift.loc[str(day)]
+    chosen = plans["Forecast-based (our model)"].loc[str(day)]
+    fig = go.Figure([
+        go.Bar(x=d["hour"], y=d["price"], name="Actual price",
+               marker_color=[ORANGE if c else "#c3c2b7" for c in chosen]),
+        go.Scatter(x=d["hour"], y=d["price_pred"], name="Forecast",
+                   line=dict(color=BLUE, width=2)),
+    ])
+    fig.update_layout(title="Hours the model chose to run (orange) on the example day",
+                      xaxis_title="Hour of day", yaxis_title="€/MWh")
+    st.plotly_chart(style(fig), width="stretch")
