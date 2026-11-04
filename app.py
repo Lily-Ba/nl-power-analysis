@@ -24,8 +24,8 @@ def load_data():
 
 
 def style(fig, height=380):
-    fig.update_layout(height=height, margin=dict(l=10, r=10, t=40, b=10),
-                      legend=dict(orientation="h", y=1.1, x=0, title_text=""), hovermode="x unified")
+    fig.update_layout(height=height, margin=dict(l=10, r=10, t=80, b=10),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, title_text=""), hovermode="x unified")
     return fig
 
 
