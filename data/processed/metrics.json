@@ -1,0 +1,13 @@
+{
+  "mae": {
+    "Naive: same hour yesterday": 23.930190829528158,
+    "Naive: same hour last week": 30.108687975646884,
+    "Gradient boosting model": 18.661324860894865
+  },
+  "improvement_vs_naive": 0.22017651284802486,
+  "negative_classifier": {
+    "roc_auc": 0.97551061995684,
+    "precision": 0.8210526315789474,
+    "recall": 0.4006849315068493
+  }
+}

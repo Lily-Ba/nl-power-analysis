@@ -225,3 +225,4 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*.parquet
 .DS_Store
+models/

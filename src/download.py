@@ -20,6 +20,7 @@ QUERIES = {
     "load": client.query_load,
     "generation": client.query_generation,
     "wind_solar_forecast": client.query_wind_and_solar_forecast,
+    "load_forecast": client.query_load_forecast,
 }
 
 
